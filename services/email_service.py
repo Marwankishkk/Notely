@@ -4,11 +4,11 @@ from core.config import settings
 
 resend.api_key = settings.RESEND_API_KEY
 
-
 class EmailService:
 
     @staticmethod
     def send_verification_email(email: str, token: str):
+
         verification_link = (
             f"http://localhost:8000/users/verify-email?token={token}"
         )
@@ -33,5 +33,13 @@ class EmailService:
                 </p>
             """,
         }
+        try:
+            response = resend.Emails.send(params)
+            print("RESEND RESPONSE:", response)
+            return response
 
-        return resend.Emails.send(params)
+        except Exception as e:
+            print("RESEND ERROR TYPE:", type(e))
+            print("RESEND ERROR:", e)
+            raise
+        #return resend.Emails.send(params)

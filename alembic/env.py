@@ -8,6 +8,8 @@ from core.database import Base
 
 # Import all models so Alembic can discover them
 import models.users.users
+import models.categories.categories
+import models.notes.notes
 
 config = context.config
 
