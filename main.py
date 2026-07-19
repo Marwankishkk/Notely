@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.users.users import user_router
 from routes.categories.categories import category_router
+from routes.notes.notes import note_router
+from routes.ai.ai import ai_router
 
 app = FastAPI()
 
@@ -16,6 +18,8 @@ app.add_middleware(
 
 app.include_router(user_router)
 app.include_router(category_router)
+app.include_router(note_router)
+app.include_router(ai_router)
 
 @app.get("/")
 async def root():

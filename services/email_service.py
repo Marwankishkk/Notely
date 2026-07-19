@@ -14,11 +14,11 @@ class EmailService:
         )
 
         params = {
-            "from": "Notely <onboarding@resend.dev>",
+            "from": "support@dawwenai.xyz",
             "to": [email],
-            "subject": "Verify your Notely account",
+            "subject": "Verify your Dawwen account",
             "html": f"""
-                <h2>Welcome to Notely 👋</h2>
+                <h2>Welcome to Dawwen 👋</h2>
 
                 <p>Thanks for creating an account.</p>
 
