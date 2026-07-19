@@ -62,9 +62,8 @@ class UserService:
                 detail="Incorrect email or password",
             )
 
-        try:
-            verify_password(user.password, existing_user.password)
-        except Exception:
+
+        if not verify_password(user.password, existing_user.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",

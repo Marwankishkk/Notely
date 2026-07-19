@@ -1,4 +1,5 @@
 import json
+import logging
 from io import BytesIO
 
 from fastapi import HTTPException, UploadFile, status
@@ -7,6 +8,8 @@ from openai import AsyncOpenAI, OpenAIError
 from core.config import settings
 from repositories.category_repository.category_repository import CategoryRepository
 from repositories.note_repository.note_repository import NoteRepository
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {".webm", ".mp3", ".wav", ".m4a", ".ogg", ".mp4", ".mpeg", ".mpga"}
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # OpenAI 25MB limit
@@ -463,9 +466,10 @@ class AIService:
                 prompt=TRANSCRIPTION_PROMPT,
             )
         except OpenAIError as exc:
+            logger.exception("OpenAI transcription failed")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Transcription failed: {exc}",
+                detail="Transcription failed. Please try again later.",
             ) from exc
 
         text = (transcription.text or "").strip()
@@ -495,9 +499,10 @@ class AIService:
                 temperature=0.3,
             )
         except OpenAIError as exc:
+            logger.exception("OpenAI note structuring failed")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Note structuring failed: {exc}",
+                detail="Note structuring failed. Please try again later.",
             ) from exc
 
         raw = response.choices[0].message.content or ""
@@ -594,9 +599,10 @@ class AIService:
                 temperature=0.3,
             )
         except OpenAIError as exc:
+            logger.exception("OpenAI note summarizing failed")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Notes summarizing failed: {exc}",
+                detail="Notes summarizing failed. Please try again later.",
             ) from exc
 
         raw = response.choices[0].message.content or ""
