@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.jwt import get_current_user
+from core.rate_limit import rate_limit
 from schemas.ai.ai import SummarizeRequest, SummarizeResponse
 from schemas.notes.notes import NoteResponse
 from services.AIService.ai import AIService
@@ -10,7 +11,11 @@ from services.AIService.ai import AIService
 ai_router = APIRouter(prefix="/ai", tags=["ai"])
 
 
-@ai_router.post("/voice-note", response_model=NoteResponse)
+@ai_router.post(
+    "/voice-note",
+    response_model=NoteResponse,
+    dependencies=[rate_limit("voice_note")],
+)
 async def create_voice_note(
     file: UploadFile = File(...),
     category_id: int | None = Form(default=None),
@@ -25,7 +30,11 @@ async def create_voice_note(
     )
 
 
-@ai_router.post("/summarize", response_model=SummarizeResponse)
+@ai_router.post(
+    "/summarize",
+    response_model=SummarizeResponse,
+    dependencies=[rate_limit("summarize")],
+)
 async def summarize_category_notes(
     data: SummarizeRequest,
     current_user=Depends(get_current_user),

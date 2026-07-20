@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str
     OPENAI_API_KEY: str
     ENVIRONMENT: str = "development"
+    FRONTEND_URL: str = "http://localhost:3000"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     class Config:
         env_file = ".env"

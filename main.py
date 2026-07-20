@@ -1,13 +1,25 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
-from routes.users.users import user_router
+from core.rate_limit import close_rate_limiter, init_rate_limiter
+from routes.ai.ai import ai_router
 from routes.categories.categories import category_router
 from routes.notes.notes import note_router
-from routes.ai.ai import ai_router
+from routes.users.users import user_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_rate_limiter()
+    yield
+    await close_rate_limiter()
+
 
 app = FastAPI(
+    lifespan=lifespan,
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",
     openapi_url=None if settings.is_production else "/openapi.json",
