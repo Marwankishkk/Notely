@@ -10,6 +10,7 @@ from core.database import Base
 import models.users.users
 import models.categories.categories
 import models.notes.notes
+import models.summaries.summaries
 
 config = context.config
 

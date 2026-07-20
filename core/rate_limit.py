@@ -36,6 +36,8 @@ async def init_rate_limiter() -> Redis:
             "login": await _make_limiter(5, 60, "rl:login"),
             "register": await _make_limiter(3, 60, "rl:register"),
             "verify_email": await _make_limiter(10, 60, "rl:verify-email"),
+            "forgot_password": await _make_limiter(3, 60, "rl:forgot-password"),
+            "reset_password": await _make_limiter(5, 60, "rl:reset-password"),
             "refresh": await _make_limiter(20, 60, "rl:refresh"),
             "voice_note": await _make_limiter(10, 60, "rl:voice-note"),
             "summarize": await _make_limiter(1, 60, "rl:summarize"),

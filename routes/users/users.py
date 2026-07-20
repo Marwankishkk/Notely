@@ -4,7 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.jwt import get_current_user
 from core.rate_limit import rate_limit
-from schemas.users.users import UserCreate, UserResponse, UserLogin, RefreshTokenRequest
+from schemas.users.users import (
+    UserCreate,
+    UserResponse,
+    UserLogin,
+    RefreshTokenRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
 from services.UserService.users import UserService
 
 user_router = APIRouter(prefix="/users", tags=["users"])
@@ -29,6 +36,28 @@ async def verify_email(
     db: AsyncSession = Depends(get_db),
 ):
     return await UserService.verify_email(token, db)
+
+
+@user_router.post(
+    "/forgot-password",
+    dependencies=[rate_limit("forgot_password")],
+)
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    return await UserService.forgot_password(data, db)
+
+
+@user_router.post(
+    "/reset-password",
+    dependencies=[rate_limit("reset_password")],
+)
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    return await UserService.reset_password(data, db)
 
 
 @user_router.get(

@@ -8,6 +8,7 @@ from core.rate_limit import close_rate_limiter, init_rate_limiter
 from routes.ai.ai import ai_router
 from routes.categories.categories import category_router
 from routes.notes.notes import note_router
+from routes.summaries.summaries import summary_router
 from routes.users.users import user_router
 
 
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(user_router)
 app.include_router(category_router)
 app.include_router(note_router)
+app.include_router(summary_router)
 app.include_router(ai_router)
 
 

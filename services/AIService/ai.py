@@ -8,6 +8,7 @@ from openai import AsyncOpenAI, OpenAIError
 from core.config import settings
 from repositories.category_repository.category_repository import CategoryRepository
 from repositories.note_repository.note_repository import NoteRepository
+from repositories.summary_repository.summary_repository import SummaryRepository
 
 logger = logging.getLogger(__name__)
 
@@ -621,4 +622,9 @@ class AIService:
                 detail="AI returned an incomplete summary.",
             )
 
-        return {"summary": summary}
+        return await SummaryRepository.upsert_summary(
+            db=db,
+            user_id=user_id,
+            category_id=category_id,
+            summary_text=summary,
+        )

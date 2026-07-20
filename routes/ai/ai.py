@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.jwt import get_current_user
 from core.rate_limit import rate_limit
-from schemas.ai.ai import SummarizeRequest, SummarizeResponse
+from schemas.ai.ai import SummarizeRequest
 from schemas.notes.notes import NoteResponse
+from schemas.summaries.summaries import SummaryResponse
 from services.AIService.ai import AIService
 
 ai_router = APIRouter(prefix="/ai", tags=["ai"])
@@ -32,7 +33,7 @@ async def create_voice_note(
 
 @ai_router.post(
     "/summarize",
-    response_model=SummarizeResponse,
+    response_model=SummaryResponse,
     dependencies=[rate_limit("summarize")],
 )
 async def summarize_category_notes(

@@ -1,11 +1,22 @@
-from fastapi import HTTPException,status
+from fastapi import HTTPException, status
 
-from repositories.user_repository import user_repository
-from schemas.users.users import UserCreate,UserLogin
-from core.security import hash_password,verify_password
-from core.jwt import create_access_token,create_refresh_token,create_email_verification_token,verify_token
+from schemas.users.users import (
+    UserCreate,
+    UserLogin,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
+from core.security import hash_password, verify_password
+from core.jwt import (
+    create_access_token,
+    create_refresh_token,
+    create_email_verification_token,
+    create_password_reset_token,
+    verify_token,
+)
 from repositories.user_repository.user_repository import UserRepository
 from services.email_service import EmailService
+
 
 class UserService:
 
@@ -51,6 +62,7 @@ class UserService:
         return {
             "message": "Registration successful. Please check your email to verify your account."
         }
+
     @staticmethod
     async def login_user(user: UserLogin, db):
         user.email = user.email.lower()
@@ -61,7 +73,6 @@ class UserService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
             )
-
 
         if not verify_password(user.password, existing_user.password):
             raise HTTPException(
@@ -113,6 +124,70 @@ class UserService:
 
         return {
             "message": "Email verified successfully."
+        }
+
+    @staticmethod
+    async def forgot_password(data: ForgotPasswordRequest, db):
+        email = data.email.lower()
+        user = await UserRepository.find_by_email(db, email)
+
+        # Always return the same message to avoid email enumeration.
+        generic_response = {
+            "message": (
+                "If an account with that email exists, "
+                "a password reset link has been sent."
+            )
+        }
+
+        if user is None:
+            return generic_response
+
+        reset_token = create_password_reset_token(
+            {
+                "sub": str(user.id),
+                "email": user.email,
+            }
+        )
+
+        try:
+            EmailService.send_password_reset_email(user.email, reset_token)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send password reset email. Please try again.",
+            )
+
+        return generic_response
+
+    @staticmethod
+    async def reset_password(data: ResetPasswordRequest, db):
+        payload = verify_token(
+            data.token,
+            token_type="password_reset",
+        )
+
+        user = await UserRepository.find_by_id(
+            db,
+            int(payload["sub"]),
+        )
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token",
+            )
+
+        if payload.get("email") and payload["email"] != user.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token",
+            )
+
+        user.password = hash_password(data.new_password)
+        await db.commit()
+
+        return {
+            "message": "Password reset successfully. You can now log in."
         }
 
     @staticmethod

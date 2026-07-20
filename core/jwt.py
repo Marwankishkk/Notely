@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, status , Depends
+from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
@@ -13,6 +13,8 @@ ALGORITHM = settings.ALGORITHM
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 1
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+EMAIL_VERIFICATION_EXPIRE_HOURS = 24
+PASSWORD_RESET_EXPIRE_HOURS = 1
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
@@ -35,6 +37,8 @@ async def get_current_user(
         )
 
     return user
+
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     to_encode["type"] = "access"
@@ -90,8 +94,6 @@ def verify_token(token: str, token_type: str = "access") -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-EMAIL_VERIFICATION_EXPIRE_HOURS = 24
-
 
 def create_email_verification_token(data: dict) -> str:
     to_encode = data.copy()
@@ -103,4 +105,21 @@ def create_email_verification_token(data: dict) -> str:
     return jwt.encode(
         to_encode,
         SECRET_KEY,
-        algorithm=ALGORITHM,)
+        algorithm=ALGORITHM,
+    )
+
+
+def create_password_reset_token(data: dict) -> str:
+    to_encode = data.copy()
+    to_encode["type"] = "password_reset"
+
+    expire = datetime.now(timezone.utc) + timedelta(
+        hours=PASSWORD_RESET_EXPIRE_HOURS
+    )
+    to_encode["exp"] = expire
+
+    return jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
