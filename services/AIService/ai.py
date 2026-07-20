@@ -567,14 +567,21 @@ class AIService:
         user_id: int,
         db,
         category_id: int | None = None,
+        client_duration_seconds: float | None = None,
     ):
         file_bytes = await AIService._read_audio_limited(audio)
         AIService._validate_audio(audio.filename, len(file_bytes))
 
-        duration_seconds = get_audio_duration_seconds(
-            file_bytes,
-            audio.filename or "audio.webm",
-        )
+        try:
+            duration_seconds = get_audio_duration_seconds(
+                file_bytes,
+                audio.filename or "audio.webm",
+            )
+        except HTTPException:
+            # MediaRecorder webm sometimes has no readable duration; use client timer.
+            if client_duration_seconds is None or client_duration_seconds <= 0:
+                raise
+            duration_seconds = float(client_duration_seconds)
 
         await SubscriptionService.assert_can_create_voice_note(
             user_id,
