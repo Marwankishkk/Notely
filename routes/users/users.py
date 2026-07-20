@@ -6,12 +6,12 @@ from core.jwt import get_current_user
 from core.rate_limit import rate_limit
 from schemas.users.users import (
     UserCreate,
-    UserResponse,
     UserLogin,
     RefreshTokenRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
 )
+from schemas.subscriptions.subscriptions import MeResponse
 from services.UserService.users import UserService
 
 user_router = APIRouter(prefix="/users", tags=["users"])
@@ -62,12 +62,13 @@ async def reset_password(
 
 @user_router.get(
     "/me",
-    response_model=UserResponse,
+    response_model=MeResponse,
 )
 async def get_me(
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    return await UserService.get_me(current_user)
+    return await UserService.get_me(current_user, db)
 
 
 @user_router.post("/refresh", dependencies=[rate_limit("refresh")])

@@ -20,6 +20,7 @@ ai_router = APIRouter(prefix="/ai", tags=["ai"])
 async def create_voice_note(
     file: UploadFile = File(...),
     category_id: int | None = Form(default=None),
+    duration_seconds: float | None = Form(default=None),
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -28,6 +29,7 @@ async def create_voice_note(
         user_id=current_user.id,
         db=db,
         category_id=category_id,
+        duration_seconds=duration_seconds,
     )
 
 

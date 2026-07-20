@@ -11,6 +11,7 @@ import models.users.users
 import models.categories.categories
 import models.notes.notes
 import models.summaries.summaries
+import models.subscriptions.subscriptions
 
 config = context.config
 

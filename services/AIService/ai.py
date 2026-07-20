@@ -9,6 +9,7 @@ from core.config import settings
 from repositories.category_repository.category_repository import CategoryRepository
 from repositories.note_repository.note_repository import NoteRepository
 from repositories.summary_repository.summary_repository import SummaryRepository
+from services.SubscriptionService.subscriptions import SubscriptionService
 
 logger = logging.getLogger(__name__)
 
@@ -532,9 +533,16 @@ class AIService:
         user_id: int,
         db,
         category_id: int | None = None,
+        duration_seconds: float | None = None,
     ):
         file_bytes = await audio.read()
         AIService._validate_audio(audio.filename, len(file_bytes))
+
+        await SubscriptionService.assert_can_create_voice_note(
+            user_id,
+            db,
+            duration_seconds=duration_seconds,
+        )
 
         if category_id is not None:
             category = await CategoryRepository.find_by_id(db, category_id)
@@ -566,6 +574,8 @@ class AIService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Category not found",
             )
+
+        await SubscriptionService.assert_can_summarize(user_id, db)
 
         notes = await NoteRepository.find_all_by_user(
             db,
@@ -622,9 +632,11 @@ class AIService:
                 detail="AI returned an incomplete summary.",
             )
 
-        return await SummaryRepository.upsert_summary(
+        saved = await SummaryRepository.upsert_summary(
             db=db,
             user_id=user_id,
             category_id=category_id,
             summary_text=summary,
         )
+        await SubscriptionService.record_summary_usage(user_id, db)
+        return saved

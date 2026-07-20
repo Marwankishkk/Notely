@@ -15,7 +15,18 @@ from core.jwt import (
     verify_token,
 )
 from repositories.user_repository.user_repository import UserRepository
+from repositories.subscription_repository.subscription_repository import (
+    SubscriptionRepository,
+)
 from services.email_service import EmailService
+from services.SubscriptionService.subscriptions import SubscriptionService
+from core.plans import get_plan_limits
+from schemas.subscriptions.subscriptions import (
+    MeResponse,
+    PlanLimitsResponse,
+    SubscriptionResponse,
+    UsageTodayResponse,
+)
 
 
 class UserService:
@@ -37,6 +48,11 @@ class UserService:
         created_user = await UserRepository.create_user(
             db=db,
             user=user,
+        )
+
+        await SubscriptionRepository.create_basic_subscription(
+            db,
+            created_user.id,
         )
 
         verification_token = create_email_verification_token(
@@ -191,8 +207,32 @@ class UserService:
         }
 
     @staticmethod
-    async def get_me(current_user):
-        return current_user
+    async def get_me(current_user, db):
+        subscription = await SubscriptionService.get_or_create_for_user(
+            current_user.id,
+            db,
+        )
+        plan = SubscriptionService.effective_plan(subscription)
+        limits = get_plan_limits(plan)
+        usage = await SubscriptionService.get_usage_today(current_user.id, db)
+
+        return MeResponse(
+            id=current_user.id,
+            name=current_user.name,
+            email=current_user.email,
+            created_at=current_user.created_at,
+            updated_at=current_user.updated_at,
+            subscription=SubscriptionResponse.model_validate(subscription),
+            limits=PlanLimitsResponse(
+                notes_per_day=limits.notes_per_day,
+                max_audio_seconds=limits.max_audio_seconds,
+                summaries_per_day=limits.summaries_per_day,
+            ),
+            usage_today=UsageTodayResponse(
+                notes=usage["notes"],
+                summaries=usage["summaries"],
+            ),
+        )
 
     @staticmethod
     async def refresh_access_token(refresh_token: str, db):
