@@ -13,7 +13,9 @@ from core.jwt import (
     create_email_verification_token,
     create_password_reset_token,
     verify_token,
+    verify_refresh_token,
 )
+from core.token_blacklist import revoke_refresh_token
 from repositories.user_repository.user_repository import UserRepository
 from repositories.subscription_repository.subscription_repository import (
     SubscriptionRepository,
@@ -236,10 +238,7 @@ class UserService:
 
     @staticmethod
     async def refresh_access_token(refresh_token: str, db):
-        payload = verify_token(
-            refresh_token,
-            token_type="refresh",
-        )
+        payload = await verify_refresh_token(refresh_token)
 
         user = await UserRepository.find_by_id(
             db,
@@ -258,15 +257,24 @@ class UserService:
                 detail="User is inactive",
             )
 
+        # Rotate refresh token: revoke the old one.
+        await revoke_refresh_token(refresh_token)
+
         token_data = {
             "sub": str(user.id),
             "email": user.email,
             "name": user.name,
         }
 
-        access_token = create_access_token(token_data)
-
         return {
-            "access_token": access_token,
-            "token_type": "bearer",
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data),
+        }
+
+    @staticmethod
+    async def logout(refresh_token: str | None):
+        if refresh_token:
+            await revoke_refresh_token(refresh_token)
+        return {
+            "message": "Logged out successfully."
         }

@@ -6,6 +6,7 @@ from fastapi import HTTPException, UploadFile, status
 from openai import AsyncOpenAI, OpenAIError
 
 from core.config import settings
+from core.audio import get_audio_duration_seconds
 from repositories.category_repository.category_repository import CategoryRepository
 from repositories.note_repository.note_repository import NoteRepository
 from repositories.summary_repository.summary_repository import SummaryRepository
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {".webm", ".mp3", ".wav", ".m4a", ".ogg", ".mp4", ".mpeg", ".mpga"}
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # OpenAI 25MB limit
+READ_CHUNK_SIZE = 64 * 1024
 
 STRUCTURE_SYSTEM_PROMPT = """
 You are an expert AI note-taking assistant.
@@ -528,15 +530,51 @@ class AIService:
         return {"title": title, "content": content}
 
     @staticmethod
+    async def _read_audio_limited(audio: UploadFile) -> bytes:
+        """Read upload in chunks and reject oversized files early."""
+        content_length = audio.headers.get("content-length")
+        if content_length is not None:
+            try:
+                declared_size = int(content_length)
+            except ValueError:
+                declared_size = None
+            else:
+                if declared_size > MAX_AUDIO_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Audio file exceeds the 25MB limit.",
+                    )
+
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = await audio.read(READ_CHUNK_SIZE)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_AUDIO_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Audio file exceeds the 25MB limit.",
+                )
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
+    @staticmethod
     async def create_note_from_voice(
         audio: UploadFile,
         user_id: int,
         db,
         category_id: int | None = None,
-        duration_seconds: float | None = None,
     ):
-        file_bytes = await audio.read()
+        file_bytes = await AIService._read_audio_limited(audio)
         AIService._validate_audio(audio.filename, len(file_bytes))
+
+        duration_seconds = get_audio_duration_seconds(
+            file_bytes,
+            audio.filename or "audio.webm",
+        )
 
         await SubscriptionService.assert_can_create_voice_note(
             user_id,

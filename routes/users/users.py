@@ -1,13 +1,17 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.cookies import (
+    REFRESH_COOKIE,
+    clear_auth_cookies,
+    set_auth_cookies,
+)
 from core.database import get_db
 from core.jwt import get_current_user
 from core.rate_limit import rate_limit
 from schemas.users.users import (
     UserCreate,
     UserLogin,
-    RefreshTokenRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
 )
@@ -26,8 +30,18 @@ async def create_user(
 
 
 @user_router.post("/login", dependencies=[rate_limit("login")])
-async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
-    return await UserService.login_user(user, db)
+async def login(
+    user: UserLogin,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    tokens = await UserService.login_user(user, db)
+    set_auth_cookies(
+        response,
+        tokens["access_token"],
+        tokens["refresh_token"],
+    )
+    return {"message": "Logged in successfully."}
 
 
 @user_router.get("/verify-email", dependencies=[rate_limit("verify_email")])
@@ -73,17 +87,29 @@ async def get_me(
 
 @user_router.post("/refresh", dependencies=[rate_limit("refresh")])
 async def refresh_token(
-    request: RefreshTokenRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    return await UserService.refresh_access_token(
-        request.refresh_token,
-        db,
+    refresh = request.cookies.get(REFRESH_COOKIE)
+    if not refresh:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token missing",
+        )
+
+    tokens = await UserService.refresh_access_token(refresh, db)
+    set_auth_cookies(
+        response,
+        tokens["access_token"],
+        tokens["refresh_token"],
     )
+    return {"message": "Token refreshed successfully."}
 
 
 @user_router.post("/logout")
-async def logout():
-    return {
-        "message": "Logged out successfully."
-    }
+async def logout(request: Request, response: Response):
+    refresh = request.cookies.get(REFRESH_COOKIE)
+    result = await UserService.logout(refresh)
+    clear_auth_cookies(response)
+    return result

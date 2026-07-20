@@ -55,6 +55,12 @@ async def close_rate_limiter() -> None:
         _redis = None
 
 
+def get_redis() -> Redis:
+    if _redis is None:
+        raise RuntimeError("Redis is not initialized")
+    return _redis
+
+
 def rate_limit(name: str):
     async def dependency(request: Request):
         limiter = _limiters.get(name)

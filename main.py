@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from core.config import settings
-from core.rate_limit import close_rate_limiter, init_rate_limiter
+from core.database import AsyncSessionLocal
+from core.rate_limit import close_rate_limiter, get_redis, init_rate_limiter
 from routes.ai.ai import ai_router
 from routes.categories.categories import category_router
 from routes.notes.notes import note_router
@@ -26,10 +28,9 @@ app = FastAPI(
     openapi_url=None if settings.is_production else "/openapi.json",
 )
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,11 +43,25 @@ app.include_router(summary_router)
 app.include_router(ai_router)
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+@app.get("/health")
+async def health():
+    checks: dict[str, str] = {}
 
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception:
+        checks["database"] = "error"
 
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
+    try:
+        await get_redis().ping()
+        checks["redis"] = "ok"
+    except Exception:
+        checks["redis"] = "error"
+
+    healthy = all(value == "ok" for value in checks.values())
+    return {
+        "status": "ok" if healthy else "degraded",
+        "checks": checks,
+    }

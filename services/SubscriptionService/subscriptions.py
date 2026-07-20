@@ -105,7 +105,7 @@ class SubscriptionService:
             if duration_seconds is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="duration_seconds is required.",
+                    detail="Could not determine audio duration.",
                 )
             if duration_seconds > limits.max_audio_seconds:
                 raise HTTPException(

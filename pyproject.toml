@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.139.0",
     "fastapi-limiter>=0.2.0",
     "greenlet>=3.5.3",
+    "mutagen>=1.48.1",
     "openai>=2.0.0",
     "passlib[bcrypt]>=1.7.4",
     "psycopg>=3.3.4",

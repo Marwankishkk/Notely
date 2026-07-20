@@ -30,3 +30,6 @@ htmlcov/
 # Local tooling
 *.http
 .uvicorn/
+
+# Database / Redis dump output from scripts/
+backups/
