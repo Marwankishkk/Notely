@@ -14,6 +14,19 @@ Point an uptime monitor (Better Stack, UptimeRobot, CloudWatch, etc.) at:
 
 Alert when `status` is not `ok` or the endpoint is unreachable.
 
+## Admin dashboard
+
+Set `ADMIN_EMAILS` in the API `.env` (comma-separated, case-insensitive), then restart the API:
+
+```bash
+# example
+ADMIN_EMAILS=you@example.com
+
+systemctl restart notely-api
+```
+
+Open `https://dawwenai.xyz/admin` while logged in as that email (or use Profile → Open admin dashboard).
+
 ## Postgres backup
 
 Daily logical backup (adjust connection URL and destination):

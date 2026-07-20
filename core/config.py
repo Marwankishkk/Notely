@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"
     COOKIE_SECURE: bool | None = None
     COOKIE_DOMAIN: str | None = None
+    # Comma-separated admin emails (case-insensitive).
+    ADMIN_EMAILS: str = ""
 
     class Config:
         env_file = ".env"
@@ -25,6 +27,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
+
+    @property
+    def admin_emails(self) -> set[str]:
+        return {
+            email.strip().lower()
+            for email in self.ADMIN_EMAILS.split(",")
+            if email.strip()
+        }
 
     @property
     def cookie_secure(self) -> bool:
