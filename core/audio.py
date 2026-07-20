@@ -1,3 +1,5 @@
+import re
+import shutil
 import subprocess
 import tempfile
 import wave
@@ -10,6 +12,13 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
+
+_FFPROBE = shutil.which("ffprobe") or "/usr/bin/ffprobe"
+_FFMPEG = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
+_DURATION_RE = re.compile(
+    r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
 
 
 def get_audio_duration_seconds(file_bytes: bytes, filename: str) -> float:
@@ -25,7 +34,12 @@ def get_audio_duration_seconds(file_bytes: bytes, filename: str) -> float:
         if duration is not None:
             return duration
 
+    # Browser MediaRecorder webm/opus often has no format duration — use ffmpeg.
     duration = _duration_with_ffprobe(file_bytes, extension)
+    if duration is not None:
+        return duration
+
+    duration = _duration_with_ffmpeg(file_bytes, extension)
     if duration is not None:
         return duration
 
@@ -79,25 +93,63 @@ def _duration_with_ffprobe(file_bytes: bytes, extension: str) -> float | None:
         with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
             tmp.write(file_bytes)
             tmp.flush()
+            for entries in ("format=duration", "stream=duration"):
+                result = subprocess.run(
+                    [
+                        _FFPROBE,
+                        "-v",
+                        "error",
+                        "-show_entries",
+                        entries,
+                        "-of",
+                        "default=noprint_wrappers=1:nokey=1",
+                        tmp.name,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    continue
+                for line in result.stdout.splitlines():
+                    value = line.strip()
+                    if not value or value.upper() == "N/A":
+                        continue
+                    try:
+                        length = float(value)
+                    except ValueError:
+                        continue
+                    if length > 0:
+                        return length
+        return None
+    except Exception:
+        return None
+
+
+def _duration_with_ffmpeg(file_bytes: bytes, extension: str) -> float | None:
+    """Parse Duration from ffmpeg stderr — works for MediaRecorder webm."""
+    suffix = extension if extension else ".webm"
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+            tmp.write(file_bytes)
+            tmp.flush()
             result = subprocess.run(
-                [
-                    "ffprobe",
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "format=duration",
-                    "-of",
-                    "default=noprint_wrappers=1:nokey=1",
-                    tmp.name,
-                ],
+                [_FFMPEG, "-i", tmp.name, "-f", "null", "-"],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=30,
                 check=False,
             )
-        if result.returncode != 0:
+        match = _DURATION_RE.search(result.stderr or "")
+        if not match:
             return None
-        length = float(result.stdout.strip())
+        hours, minutes, seconds = match.groups()
+        length = (
+            int(hours) * 3600
+            + int(minutes) * 60
+            + float(seconds)
+        )
         return length if length > 0 else None
     except Exception:
         return None
